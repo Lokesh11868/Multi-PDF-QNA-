@@ -3,10 +3,11 @@ import os
 from dotenv import load_dotenv
 import PyPDF2
 import tempfile
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
-from langchain.chains import RetrievalQA
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_core.documents import Document
+from langchain_classic.chains.retrieval_qa.base import RetrievalQA
 
 # Load environment
 load_dotenv()
@@ -38,10 +39,10 @@ def extract_pdf_text(pdf_file):
         return ""
 
 def setup_rag(documents):
-    """Setup RAG system using Gemini 1.5 Flash"""
-    api_key = os.getenv("GOOGLE_API_KEY")
+    """Setup RAG system using Groq"""
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        st.error("Please set GOOGLE_API_KEY in .env file.")
+        st.error("Please set GROQ_API_KEY in .env file.")
         return None
 
     # Create documents
@@ -58,16 +59,16 @@ def setup_rag(documents):
     if not docs:
         return None
 
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
-        google_api_key=api_key
+    # Use local HuggingFace embeddings (no API limits)
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
     vectorstore = FAISS.from_documents(docs, embeddings)
 
-    # LLM setup
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
-        google_api_key=api_key,
+    # LLM setup with Groq
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        groq_api_key=api_key,
         temperature=0.3
     )
     qa_chain = RetrievalQA.from_chain_type(
@@ -88,7 +89,7 @@ def main():
         st.session_state.chat_history = []
     
     # Header
-    st.markdown('<div class="main-header"><h1>📚 Multi-PDF Q&A Assistant</h1></div>', 
+    st.markdown('<div class="main-header"><h1>📚 Multi-PDF Q&A Assistant</h1><p style="margin:0;">Powered by Groq + Llama 3.3</p></div>', 
                 unsafe_allow_html=True)
 
     # Sidebar
